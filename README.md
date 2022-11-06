@@ -19,7 +19,7 @@ To run script via `./main.py` instead of `python main.py`
 ## Usage
 ### Working with a python script occurs through the passed arguments.
 
-Argument `-t` or `-train` starts neural network training (default dataset is _train_).
+Argument `-t` or `--train` starts neural network training (default dataset is _train_).
 ```bash
 python main.py --train
 ```
