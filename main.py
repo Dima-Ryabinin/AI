@@ -22,11 +22,12 @@ class Main:
     def run(self) -> int:
         try:
             self._runWithException()
-        except FileNotFoundError as err:
-            print(f"[ERROR] {err}", file=stderr)
-            exit(-1)
         except KeyboardInterrupt:
-            print("[INFO] The user triggered an interrupt! Termination of work.")
+            print("\n[INFO] The user triggered an interrupt! Termination of work.")
+            return 0
+        except Exception as err:
+            print(f"\n[ERROR] {err}", file=stderr)
+            return -1
     
     def _runWithException(self) -> None:
         args = self.parseArgument()
@@ -39,15 +40,14 @@ class Main:
         elif args.predict:
             self.aiPredict()
         else:
-            print("[ERROR] No action selected! Please use -t/--train or -p/--predict")
-            return -1
+            raise RuntimeError("No action selected! Please use -t/--train or -p/--predict")
         
         return 0
         
     def parseArgument(self) -> Namespace:
         argsParser = ArgumentParser()
 
-        argsParser.add_argument("-t", "--train",   action="store_true", help="train AI on a train dataset")
+        argsParser.add_argument("-t", "--train", action="store_true", help="train AI on a train dataset")
         argsParser.add_argument("-e", "--epochs-count", type=int, default=50, help="training epochs count")
         argsParser.add_argument("-b", "--batch-size",   type=int, default=32, help="training batch size")
         
@@ -121,17 +121,26 @@ class Main:
     def loadImages(self, paths: list[str]) -> list[cv2.Mat]:
         loadedImages = []
         countImages  = len(paths)
+        countNumbers  = self.getCountNumber(countImages)
         
         for i, path in enumerate(paths):
             img = cv2.imread(path)
-            img = cv2.GaussianBlur(img, (5, 5), 1)
+            img = cv2.GaussianBlur(img, (3, 3), 1)
             img = cv2.resize(img, (SIZE_IMAGE, SIZE_IMAGE))
 
             loadedImages.append(img)
-            print(f"Loading images... ({i + 1}/{countImages})", end="\r")
+            print(f"Loading images... ({(i + 1):.>{countNumbers}}/{countImages:.>{countNumbers}})", end="\r")
         print()
 
         return loadedImages
+    
+    def getCountNumber(self, num: int) -> int:
+        count = 0
+        while num > 0:
+            num //= 10
+            count += 1
+        
+        return count
     
     def normalizationImages(self, images: np.array) -> np.array:
         return np.array(images, dtype="float32") / 255
@@ -151,24 +160,22 @@ class Main:
         model = ks.Sequential([
             ks.layers.Conv2D(32, (5, 5), input_shape=(SIZE_IMAGE, SIZE_IMAGE, 3), padding="same"),
             ks.layers.Activation("relu"),
-            ks.layers.Dropout(0.1),
+            ks.layers.Dropout(0.05),
             ks.layers.BatchNormalization(),
             ks.layers.MaxPooling2D(pool_size=(2, 2), strides=2),
 
-            ks.layers.Conv2D(64, (5, 5), padding="same"),
+            ks.layers.Conv2D(64, (5, 5)),
             ks.layers.Activation("relu"),
-            ks.layers.BatchNormalization(),
             ks.layers.MaxPooling2D(pool_size=(2, 2), strides=2),
 
-            ks.layers.Conv2D(64, (5, 5), padding="same"),
+            ks.layers.Conv2D(64, (5, 5)),
             ks.layers.Activation("relu"),
-            ks.layers.BatchNormalization(),
             ks.layers.MaxPooling2D(pool_size=(2, 2), strides=2),
 
             ks.layers.Flatten(),
 
-            ks.layers.Dense(128, activation="relu"),
-            ks.layers.Dense(56, activation="relu"),
+            ks.layers.Dense(64, activation="relu"),
+            ks.layers.Dense(32, activation="relu"),
 
             ks.layers.Dense(8, activation="softmax")
         ])
